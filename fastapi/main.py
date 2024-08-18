@@ -9,7 +9,7 @@ from transformers import AutoImageProcessor, AutoModelForImageClassification
 
 import face_recognition
 from typing import List
-from models.fr_modules import face_distance, compare_faces_with_similarity
+from utils.fr_modules import compare_faces_with_similarity
 
 
 # 이미지 업로드 함수
