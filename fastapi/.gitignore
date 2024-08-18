@@ -1,5 +1,7 @@
 test/
 test.py
+test_fr.py
+
 
 # Created by https://www.toptal.com/developers/gitignore/api/python,windows,macos,visualstudiocode
 # Edit at https://www.toptal.com/developers/gitignore?templates=python,windows,macos,visualstudiocode
