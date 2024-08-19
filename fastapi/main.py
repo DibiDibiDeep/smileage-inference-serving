@@ -7,12 +7,15 @@ import torch
 import numpy as np
 from transformers import AutoImageProcessor, AutoModelForImageClassification
 
+import face_recognition
+from typing import List
+from utils.fr_modules import compare_faces_with_similarity
+
 
 # 이미지 업로드 함수
 def load_image_from_upload(upload_file: UploadFile):
     image = Image.open(io.BytesIO(upload_file.file.read()))
     return np.array(image)
-
 
 app = FastAPI()
 
@@ -37,7 +40,6 @@ try:
 except Exception as e:
     print(f"Error loading model: {str(e)}")
 
-
 @app.post("/predict")
 async def predict(file: UploadFile):
     try:
@@ -53,7 +55,7 @@ async def predict(file: UploadFile):
         image_np = np.array(image)
 
         # 이미지 전처리
-        inputs = processor(images=image_np, return_tensors="pt")
+        inputs = processor(images=image_np, return_tensors="pt", padding=True)
 
         # 모델을 통해 예측 수행
         with torch.no_grad():
@@ -79,3 +81,33 @@ async def predict(file: UploadFile):
         return JSONResponse(content={"error": str(e)}, status_code=500)
 
 
+# compare 추가
+@app.post("/compare-faces/")
+async def compare_faces(known_image_file: UploadFile, unknown_image_file: UploadFile):
+    # Load the images from the uploaded files
+    known_image = load_image_from_upload(known_image_file)
+    unknown_image = load_image_from_upload(unknown_image_file)
+
+    # Encode the faces
+    try:
+        known_encoding = face_recognition.face_encodings(known_image)[0]
+        unknown_encoding = face_recognition.face_encodings(unknown_image)[0]
+    except IndexError:
+        raise HTTPException(
+            status_code=400, detail="No face found in one of the images."
+        )
+
+    # Compare faces
+    tolerance = 0.6
+    results = face_recognition.compare_faces(
+        [known_encoding], unknown_encoding, tolerance=tolerance
+    )
+    # 얼굴 비교 및 유사도 계산
+    similarity = compare_faces_with_similarity([known_encoding], unknown_encoding)
+
+    # Convert numpy.bool_ to standard bool (fastapi가 numpy.bool_를 fastapi가 처리 못함)
+    return {
+        "match": bool(results[0]),
+        "tolerance": tolerance,
+        "similarity": similarity[0][1],
+    }
