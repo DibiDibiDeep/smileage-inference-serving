@@ -254,7 +254,7 @@ async def compare_faces(known_image_file: UploadFile, unknown_image_file: Upload
         )
 
     # Compare faces
-    tolerance = 0.6
+    tolerance = 0.4
     results = face_recognition.compare_faces(
         [known_encoding], unknown_encoding, tolerance=tolerance
     )
