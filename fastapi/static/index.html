@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Real-time Face Recognition</title>
+</head>
+<body>
+    <h1>Real-time Face Recognition</h1>
+    <video id="video" autoplay playsinline style="display: none;"></video> 
+    <canvas id="canvas" style="display: none;"></canvas>
+    <img id="detectedImage" alt="Detected Faces" />
+
+    <script>
+        const video = document.getElementById('video');
+        const canvas = document.getElementById('canvas');
+        const detectedImage = document.getElementById('detectedImage');
+
+        // 웹캠 비디오 스트림 설정
+        navigator.mediaDevices.getUserMedia({ video: true })
+            .then(stream => {
+                video.srcObject = stream;
+            })
+            .catch(err => console.error("Error accessing webcam:", err));
+
+        // WebSocket 연결
+        const ws = new WebSocket('ws://localhost:8000/ws');
+
+        ws.onopen = () => {
+            console.log("WebSocket connected");
+        };
+
+        ws.onmessage = (event) => {
+            // 서버에서 받은 Base64 인코딩된 이미지 표시
+            detectedImage.src = "data:image/jpeg;base64," + event.data;
+        };
+
+        ws.onclose = () => {
+            console.log("WebSocket disconnected");
+        };
+
+        // 프레임 캡처 및 전송
+        function captureFrame() {
+            const ctx = canvas.getContext('2d');
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+            canvas.toBlob(blob => {
+                const reader = new FileReader();
+                reader.onloadend = () => {
+                    ws.send(reader.result);
+                };
+                reader.readAsArrayBuffer(blob);
+            }, 'image/jpeg');
+        }
+
+        // 초당 1프레임 전송
+        setInterval(captureFrame, 1000);
+    </script>
+</body>
+</html>
