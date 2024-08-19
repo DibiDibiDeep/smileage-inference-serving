@@ -82,6 +82,36 @@ def load_registered_users_from_db():
         known_face_names.append(userName)
     
     return known_face_encodings, known_face_names
+@app.post("/verify-user")
+async def verify_user(file: UploadFile = File(...)):
+    try:
+        # 파일 읽기
+        contents = await file.read()
+        image = Image.open(io.BytesIO(contents))
+        image_np = np.array(image)
+        
+        # 얼굴 인코딩
+        face_encodings = face_recognition.face_encodings(image_np)
+        if not face_encodings:
+            raise HTTPException(status_code=400, detail="No face detected in the image")
+        
+        face_encoding = face_encodings[0]
+        
+        # DB에서 등록된 사용자 로드
+        known_face_encodings, known_face_names = load_registered_users_from_db()
+        
+        # 사용자 인식
+        face_distances = face_recognition.face_distance(known_face_encodings, face_encoding)
+        best_match_index = np.argmin(face_distances)
+        
+        if face_distances[best_match_index] < 0.4:
+            name = known_face_names[best_match_index]
+            return JSONResponse(content={"recognized": True, "userName": name})
+        else:
+            return JSONResponse(content={"recognized": False})
+    except Exception as e:
+        print(f"Error: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal Server Error")
 
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
@@ -267,3 +297,9 @@ async def compare_faces(known_image_file: UploadFile, unknown_image_file: Upload
         "tolerance": tolerance,
         "similarity": similarity[0][1],
     }
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8000)
+    
+    
