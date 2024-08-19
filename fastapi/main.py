@@ -17,7 +17,6 @@ def load_image_from_upload(upload_file: UploadFile):
     image = Image.open(io.BytesIO(upload_file.file.read()))
     return np.array(image)
 
-
 app = FastAPI()
 
 origins = [
@@ -41,7 +40,6 @@ try:
 except Exception as e:
     print(f"Error loading model: {str(e)}")
 
-
 @app.post("/predict")
 async def predict(file: UploadFile):
     try:
@@ -57,7 +55,7 @@ async def predict(file: UploadFile):
         image_np = np.array(image)
 
         # 이미지 전처리
-        inputs = processor(images=image_np, return_tensors="pt")
+        inputs = processor(images=image_np, return_tensors="pt", padding=True)
 
         # 모델을 통해 예측 수행
         with torch.no_grad():
