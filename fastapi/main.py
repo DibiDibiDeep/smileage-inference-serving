@@ -40,8 +40,8 @@ def create_connection():
             host='localhost',  # 또는 '127.0.0.1'
             port=3306,          # 기본 MySQL 포트
             database='smileage',
-            user='smileage',
-            password='1234'
+            user='ohgiraffers',
+            password='ohgiraffers'
         )
         return connection
     except Error as e:
