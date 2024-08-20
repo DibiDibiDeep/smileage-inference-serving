@@ -16,6 +16,9 @@ from typing import List
 from utils.fr_modules import compare_faces_with_similarity
 import mysql.connector
 from mysql.connector import Error
+from pydantic import BaseModel
+from datetime import date
+from decimal import Decimal
 
 # 이미지 업로드 함수
 def load_image_from_upload(upload_file: UploadFile):
@@ -82,6 +85,69 @@ def load_registered_users_from_db():
         known_face_names.append(userName)
     
     return known_face_encodings, known_face_names
+
+# Pydantic 모델 정의
+class MileageRequest(BaseModel):
+    userName: str
+
+@app.post("/add-mileage")
+async def add_mileage(request: MileageRequest):
+    userName = request.userName
+    connection = create_connection()
+    if connection is None:
+        raise HTTPException(status_code=500, detail="Database connection failed")
+    
+    cursor = connection.cursor()
+
+    # 오늘 날짜에 대한 마일리지 적립 횟수 확인
+    today = date.today()
+    cursor.execute("""
+        SELECT COUNT(*)
+        FROM smileage
+        WHERE userCode = (SELECT userCode FROM users WHERE userName = %s) AND DATE(NOW()) = %s
+    """, (userName, today))
+    attempt_count = cursor.fetchone()[0]
+
+    if attempt_count >= 5:
+        # 총 마일리지 조회만 수행
+        cursor.execute("""
+            SELECT SUM(mileage)
+            FROM smileage
+            WHERE userCode = (SELECT userCode FROM users WHERE userName = %s)
+        """, (userName,))
+        total_mileage = cursor.fetchone()[0]
+
+        # Decimal 타입을 float으로 변환
+        if isinstance(total_mileage, Decimal):
+            total_mileage = float(total_mileage)
+
+        cursor.close()
+        connection.close()
+        return JSONResponse(content={"message": "오늘은 더 이상 마일리지를 적립할 수 없습니다.", "mileage": total_mileage})
+    # 마일리지 추가
+    cursor.execute("""
+        INSERT INTO smileage (userCode, mileage)
+        VALUES ((SELECT userCode FROM users WHERE userName = %s), 1)
+    """, (userName,))
+    connection.commit()
+
+    # 총 마일리지 조회
+    cursor.execute("""
+        SELECT SUM(mileage)
+        FROM smileage
+        WHERE userCode = (SELECT userCode FROM users WHERE userName = %s)
+    """, (userName,))
+    total_mileage = cursor.fetchone()[0]
+
+    # Decimal 타입을 float으로 변환
+    if isinstance(total_mileage, Decimal):
+        total_mileage = float(total_mileage)
+    
+    cursor.close()
+    connection.close()
+
+    return JSONResponse(content={"message": "마일리지가 적립되었습니다.", "mileage": total_mileage})
+
 @app.post("/verify-user")
 async def verify_user(file: UploadFile = File(...)):
     try:
@@ -301,5 +367,3 @@ async def compare_faces(known_image_file: UploadFile, unknown_image_file: Upload
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
-    
-    
