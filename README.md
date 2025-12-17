@@ -28,3 +28,7 @@
     </tr>
   </table>
 </div>
+
+<br>
+
+![시연영상](https://drive.google.com/file/d/1kXUiQDhQANjG9tibRn3PiLoG6xnGPjR8/view?usp=sharing)
